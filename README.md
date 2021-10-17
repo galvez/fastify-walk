@@ -19,17 +19,25 @@ async function main () {
 
 ```js
   // Will match both files and directories
+
   fastify.walk.onMatch((entry) => {})
+
   // Will match only directories
+
   fastify.walk.onDirectory((entry) => {})  
+
   // Will match only files
+
   fastify.walk.onFile((entry) => {})
 ```
 
 ```js
   // The first parameter can be a regular expression
+
   fastify.walk.onMatch(/\.md$/, (entry) => {})
+
   // Or a complete matcher function that also takes entry as parameter
+
   fastify.walk.onMatch((entry) => {
     return Math.random() * 1 > 0.5 ? true : false
   }, (randomEntry) => {
@@ -39,9 +47,11 @@ async function main () {
 
 ```js  
   // Triggers actual filesystem read operation
+
   await fastify.ready()
 
   // Can be force-triggered ahead of time with:
+  
   await fastify.walk.done()
 }
 ```
