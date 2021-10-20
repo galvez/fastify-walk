@@ -2,7 +2,7 @@
 
 A minimal Fastify interface to [**klaw**](https://github.com/jprichardson/node-klaw).
 
-## Usage
+## Basic Usage
 
 ```js
 import Fastify from 'fastify'
@@ -35,6 +35,51 @@ async function main () {
 
   // Can be force-triggered ahead of time with:
   await fastify.walk.ready()
+}
+```
+
+## Blog Example
+
+```js
+import Fastify from 'fastify'
+import FastifyWalk from './fastify-walk/index.js'
+import { readFile } from 'fs/promises'
+import { parse, add, sort, entries, archive } from './entry.js'
+
+const app = Fastify()
+
+app.decorate('blog', {
+  index: null,
+  entries,
+  archive
+})
+
+app.register(FastifyWalk, {
+  path: import.meta.url,
+  pattern: 'posts/*.md',
+  onFile,
+  onReady
+})
+
+await app.ready()
+
+async function onFile ({ path }) {
+  const source = await readFile(path, 'utf8')
+  const entry = await parse(source, path)
+  if (!entry) {
+    return
+  }
+  add(entry)
+}
+
+function onReady () {
+  const entryList = Object.values(entries)
+  this.blog.index = sort(entryList).slice(0, 10)
+  for (const year in archive) {
+    for (const month in archive[year]) {
+      archive[year][month] = sort(archive[year][month])
+    }
+  }
 }
 ```
 
