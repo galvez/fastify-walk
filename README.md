@@ -2,6 +2,12 @@
 
 A minimal Fastify interface to [**klaw**](https://github.com/jprichardson/node-klaw).
 
+## Install
+
+```
+npm install fastify-walk --save
+```
+
 ## Basic Usage
 
 ```js
@@ -81,12 +87,6 @@ function onReady () {
     }
   }
 }
-```
-
-## Install
-
-```
-npm install fastify-walk --save
 ```
 
 ## License
