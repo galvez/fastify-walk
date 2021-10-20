@@ -42,7 +42,7 @@ async function main () {
 
 ```js
 import Fastify from 'fastify'
-import FastifyWalk from './fastify-walk/index.js'
+import FastifyWalk from 'fastify-walk'
 import { readFile } from 'fs/promises'
 import { parse, add, sort, entries, archive } from './entry.js'
 
