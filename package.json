@@ -1,0 +1,37 @@
+{
+  "scripts": {
+    "lint": "eslint . --ext js --fix",
+    "test": "tap test"
+  },
+  "bugs": {
+    "url": "https://github.com/terixjs/fastify-walk/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Minimal Fastify interface to klaw.",
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "homepage": "https://github.com/terixjs/fastify-walk",
+  "license": "MIT",
+  "main": "index.js",
+  "name": "fastify-walk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/terixjs/fastify-walk.git"
+  },
+  "version": "0.0.1",
+  "devDependencies": {
+    "eslint": "^7.28.0",
+    "eslint-config-standard": "^16.0.2",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.3.1",
+    "klaw": "^4.0.1",
+    "tap": "^15.0.10"
+  },
+  "dependencies": {
+    "globby": "^12.0.2",
+    "minimatch": "^3.0.4"
+  }
+}
