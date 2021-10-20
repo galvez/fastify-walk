@@ -34,7 +34,7 @@ async function main () {
   await fastify.ready()
 
   // Can be force-triggered ahead of time with:
-  await fastify.walk.done()
+  await fastify.walk.ready()
 }
 ```
 

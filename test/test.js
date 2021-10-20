@@ -9,7 +9,7 @@ tap.test('must match files or directories', async (t) => {
   app.walk.onMatch((entry) => {
     t.ok(entry.path)
   })
-  await app.walk.done()
+  await app.walk.ready()
 })
 
 tap.test('must match files only', async (t) => {
@@ -18,7 +18,7 @@ tap.test('must match files only', async (t) => {
   app.walk.onFile(/file/, (entry) => {
     t.match(entry.path, /file$/)
   })
-  await app.walk.done()
+  await app.walk.ready()
 })
 
 tap.test('must match directories only', async (t) => {
@@ -27,7 +27,7 @@ tap.test('must match directories only', async (t) => {
   app.walk.onDirectory((entry) => {
     t.match(entry.path, /directory$/)
   })
-  await app.walk.done()
+  await app.walk.ready()
 })
 
 async function getApp () {
