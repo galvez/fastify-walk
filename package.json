@@ -32,9 +32,10 @@
     "tap": "^15.0.10"
   },
   "dependencies": {
-    "klaw": "^4.0.1",
+    "chokidar": "^3.5.2",
     "fastify-plugin": "^3.0.0",
     "globby": "^12.0.2",
+    "klaw": "^4.0.1",
     "minimatch": "^3.0.4"
   }
 }

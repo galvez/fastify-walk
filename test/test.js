@@ -1,12 +1,16 @@
 const tap = require('tap')
 const path = require('path')
+const fs = require('fs')
+const { setTimeout } = require('timers/promises')
 const Fastify = require('fastify')
 const FastifyWalk = require('../index.js')
+
+const root = path.resolve(__dirname, 'fixture')
 
 tap.test('must match files or directories', async (t) => {
   t.plan(3)
   const app = await getApp()
-  app.walk.onMatch((entry) => {
+  app.walk.onEntry((entry) => {
     t.ok(entry.path)
   })
   await app.walk.ready()
@@ -21,6 +25,31 @@ tap.test('must match files only', async (t) => {
   await app.walk.ready()
 })
 
+tap.test('must match files and listen for changes', async (t) => {
+  t.plan(4)
+  let changedCount = 0
+  let watchedPath
+  const app = await getApp()
+  app.walk.onFile(/file/, {
+    found (entry) {
+      t.match(entry.path, /file$/)
+      watchedPath = path.join(root, entry.path)
+    },
+    changed (path) {
+      process._rawDebug(path)
+      t.match(path, /file$/)
+      if (++changedCount === 2) {
+        app.walk.stopWatching()
+      }
+    }
+  })
+  await app.walk.ready()  
+  fs.writeFileSync(watchedPath, 'file changed')
+  await setTimeout(1000)
+  fs.writeFileSync(watchedPath, 'file')
+  await setTimeout(1000)
+})
+
 tap.test('must match directories only', async (t) => {
   t.plan(1)
   const app = await getApp()
@@ -33,8 +62,9 @@ tap.test('must match directories only', async (t) => {
 async function getApp () {
   const app = Fastify()
   await app.register(FastifyWalk, {
+    watch: true,
     ignorePatterns: [/DS_Store/],
-    path: path.resolve(__dirname, 'fixture'),
+    path: root,
   })
   return app
 }

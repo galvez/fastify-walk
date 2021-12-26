@@ -1,9 +1,14 @@
 const { lstatSync } = require('fs')
-const { dirname } = require('path')
+const { dirname, join } = require('path')
 const { fileURLToPath } = require('url')
 const minimatch = require('minimatch')
 const fp = require('fastify-plugin')
 const klaw = require('klaw')
+const chokidar = require('chokidar')
+
+const kStarted = Symbol('kStarted')
+const kWatched = Symbol('kWatched')
+const kChanged = Symbol('kChanged')
 
 async function walkPlugin (fastify, options = {}) {
   const path = getPath(options.path)
@@ -13,79 +18,108 @@ async function walkPlugin (fastify, options = {}) {
     ignorePatterns.push(...options.ignorePatterns)
   }
 
+  const watchers = []
+
+  const stack = []
+  const done = []
+  const supportedCallbacks = ['onEntry', 'onMatch', 'onFile', 'onDirectory']
+
   const walk = {
+    addPattern,
+    onReady,
+    onEntry,
     onMatch,
     onDirectory,
     onFile,
     ready,
+    stopWatching,
   }
 
   fastify.decorate('walk', walk)
-  fastify.addHook('onReady', async () => {
-    await fastify.walk.ready()
-  })
+  fastify.addHook('onReady', () => ready())
 
-  const kStarted = Symbol('kStarted')
-  const stack = []
-
-  const callbacks = ['onFile', 'onDirectory', 'onMatch']
-  if (options.pattern) {
-    for (const callback of callbacks) {
-      if (callback in options) {
-        walk[callback].call(fastify, options.pattern, options[callback])
+  function addPattern (pattern, callbacks) {
+    for (const callback of supportedCallbacks) {
+      if (callback in callbacks) {
+        walk[callback].call(fastify, pattern, callbacks[callback])
       }
     }
   }
 
-  function onMatch (...args) {
-    let matcher
-    let callback
-    if (args.length > 1) {
-      matcher = args[0]
-      callback = args[1]
-    } else {
-      callback = args[0]
+  function onReady (callback) {
+    done.push(callback)
+  }
+
+  function stopWatching () {
+    try {
+      for (const watcher of watchers) {
+        watcher.close()
+      }
+    } catch (err) {
+      console.log(err)
     }
-    stack.push(async (entry) => {
-      if (matcher) {
-        if (await matcher(entry)) {
-          await callback(entry)
+  }
+
+  function onEntry (found, changed) {
+    const watched = []
+    const matched = async (entry) => {
+      if (options.watch && changed) {
+        watched.push(join(path, entry.path))
+      }
+      if (found) {
+        await found(entry)
+      }
+    }
+    matched[kWatched] = watched
+    matched[kChanged] = changed
+    stack.push(matched)
+  }
+
+  function onMatch (matcher, found, changed) {
+    const watched = []
+    const matched = async (entry) => {
+      if (await matcher(entry)) {
+        if (options.watch && changed) {
+          watched.push(join(path, entry.path))
         }
-      } else {
-        await callback(entry)
+        if (found) {
+          await found(entry)
+        }
       }
-    })
+    }
+    matched[kWatched] = watched
+    matched[kChanged] = changed
+    stack.push(matched)
   }
 
-  function onDirectory (...args) {
-    let matcher
-    let callback
-    if (args.length > 1) {
-      matcher = getMatcher(args[0])
-      callback = args[1]
-    } else {
-      callback = args[0]
-    }
-    if (matcher) {
-      onMatch.call(fastify, e => e.stats.isDirectory() && matcher(e), callback)
-    } else {
-      onMatch.call(fastify, e => e.stats.isDirectory(), callback)
-    }
+  function onDirectory (...params) {
+    const [matcher, found, changed] = getParams(params)
+    onMatch.call(fastify, e => e.stats.isDirectory() && matcher(e), found, changed)
   }
 
-  function onFile (...args) {
-    let matcher
-    let callback
-    if (args.length > 1) {
-      matcher = getMatcher(args[0])
-      callback = args[1]
-    } else {
-      callback = args[0]
+  function onFile (...params) {
+    const [matcher, found, changed] = getParams(params)
+    onMatch(e => e.stats.isFile() && matcher(e), found, changed)
+  }
+
+  function getParams (params) {
+    if (params.length === 2 && params[0]) {
+      const matcher = getMatcher(params[0])
+      if (typeof params[1] === 'object') {
+        return [matcher, params[1].found, params[1].changed]
+      } else if (typeof params[1] === 'function') {
+        return [matcher || (() => {}), params[1]]
+      }
     }
-    if (matcher) {
-      onMatch(e => e.stats.isFile() && matcher(e), callback)
-    } else {
-      onMatch(e => e.stats.isFile(), callback)
+    if (params.length === 1) {
+      if (typeof params[0] === 'object') {
+        return [() => true, params[0].found, params[0].changed]
+      } else if (typeof params[0] === 'function') {
+        return [() => true, params[0]]
+      } else {
+        console.log(params, typeof params[0])
+        throw new Error('Unexpected usage, see documentation.')
+      }
     }
   }
 
@@ -95,12 +129,21 @@ async function walkPlugin (fastify, options = {}) {
     }
     stack[kStarted] = true
     for await (const entry of walkDir(path)) {
-      for (const stacked of stack) {
-        await stacked.call(fastify, entry)
+      for (const found of stack) {
+        await found.call(fastify, entry)
       }
     }
-    if (options.onReady) {
-      options.onReady.call(fastify)
+    for (const found of stack) {
+      if (found[kChanged]) {
+        const watcher = chokidar.watch(found[kWatched])
+        watcher.on('change', found[kChanged])
+        watchers.push(watcher)
+      }
+    }
+    if (done.length) {
+      for (const readyCallback of done) {
+        readyCallback.call(fastify)
+      }
     }
   }
 
