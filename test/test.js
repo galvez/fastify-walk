@@ -36,7 +36,6 @@ tap.test('must match files and listen for changes', async (t) => {
       watchedPath = path.join(root, entry.path)
     },
     changed (path) {
-      process._rawDebug(path)
       t.match(path, /file$/)
       if (++changedCount === 2) {
         app.walk.stopWatching()

@@ -13,13 +13,13 @@ const kChanged = Symbol('kChanged')
 async function walkPlugin (fastify, options = {}) {
   const path = getPath(options.path)
   const ignorePatterns = [/node_modules/]
+  const sliceAt = path.length + (path.endsWith('/') ? 0 : 1)
 
   if (options.ignorePatterns) {
     ignorePatterns.push(...options.ignorePatterns)
   }
 
   const watchers = []
-
   const stack = []
   const done = []
   const supportedCallbacks = ['onEntry', 'onMatch', 'onFile', 'onDirectory']
@@ -117,7 +117,6 @@ async function walkPlugin (fastify, options = {}) {
       } else if (typeof params[0] === 'function') {
         return [() => true, params[0]]
       } else {
-        console.log(params, typeof params[0])
         throw new Error('Unexpected usage, see documentation.')
       }
     }
@@ -128,7 +127,7 @@ async function walkPlugin (fastify, options = {}) {
       return
     }
     stack[kStarted] = true
-    for await (const entry of walkDir(path)) {
+    for await (const entry of walkDir(path, sliceAt)) {
       for (const found of stack) {
         await found.call(fastify, entry)
       }
@@ -136,7 +135,7 @@ async function walkPlugin (fastify, options = {}) {
     for (const found of stack) {
       if (found[kChanged]) {
         const watcher = chokidar.watch(found[kWatched])
-        watcher.on('change', found[kChanged])
+        watcher.on('change', path => found[kChanged](path.slice(sliceAt)))
         watchers.push(watcher)
       }
     }
@@ -157,9 +156,7 @@ async function walkPlugin (fastify, options = {}) {
     }
   }
 
-  async function * walkDir (dir) {
-    const sliceAt = dir.length + (dir.endsWith('/') ? 0 : 1)
-
+  async function * walkDir (dir, sliceAt) {
     for await (const match of klaw(dir)) {
       const pathEntry = sliceAt ? match.path.slice(sliceAt) : match.path
       if (ignorePatterns.some(ignorePattern => ignorePattern.test(match.path))) {
