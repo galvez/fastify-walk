@@ -40,20 +40,23 @@ tap.test('must match files and listen for changes', async (t) => {
       if (++changedCount === 2) {
         app.walk.stopWatching()
       }
-    }
+    },
   })
-  await app.walk.ready()  
+  await app.walk.ready()
   fs.writeFileSync(watchedPath, 'file changed')
   await setTimeout(1000)
   fs.writeFileSync(watchedPath, 'file')
   await setTimeout(1000)
 })
 
-tap.test('must match directories only', async (t) => {
-  t.plan(1)
+tap.test('must match directories only, call onReady', async (t) => {
+  t.plan(2)
   const app = await getApp()
   app.walk.onDirectory((entry) => {
     t.match(entry.path, /directory$/)
+  })
+  app.walk.onReady(() => {
+    t.pass('onReady called')
   })
   await app.walk.ready()
 })

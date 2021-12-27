@@ -11,9 +11,9 @@ const kWatched = Symbol('kWatched')
 const kChanged = Symbol('kChanged')
 
 async function walkPlugin (fastify, options = {}) {
-  const path = getPath(options.path)
+  const root = getPath(options.path)
   const ignorePatterns = [/node_modules/]
-  const sliceAt = path.length + (path.endsWith('/') ? 0 : 1)
+  const sliceAt = root.length + (root.endsWith('/') ? 0 : 1)
 
   if (options.ignorePatterns) {
     ignorePatterns.push(...options.ignorePatterns)
@@ -51,12 +51,8 @@ async function walkPlugin (fastify, options = {}) {
   }
 
   function stopWatching () {
-    try {
-      for (const watcher of watchers) {
-        watcher.close()
-      }
-    } catch (err) {
-      console.log(err)
+    for (const watcher of watchers) {
+      watcher.close()
     }
   }
 
@@ -64,7 +60,7 @@ async function walkPlugin (fastify, options = {}) {
     const watched = []
     const matched = async (entry) => {
       if (options.watch && changed) {
-        watched.push(join(path, entry.path))
+        watched.push(join(root, entry.path))
       }
       if (found) {
         await found(entry)
@@ -80,7 +76,7 @@ async function walkPlugin (fastify, options = {}) {
     const matched = async (entry) => {
       if (await matcher(entry)) {
         if (options.watch && changed) {
-          watched.push(join(path, entry.path))
+          watched.push(join(root, entry.path))
         }
         if (found) {
           await found(entry)
@@ -99,7 +95,7 @@ async function walkPlugin (fastify, options = {}) {
 
   function onFile (...params) {
     const [matcher, found, changed] = getParams(params)
-    onMatch(e => e.stats.isFile() && matcher(e), found, changed)
+    onMatch.call(fastify, e => e.stats.isFile() && matcher(e), found, changed)
   }
 
   function getParams (params) {
@@ -127,7 +123,7 @@ async function walkPlugin (fastify, options = {}) {
       return
     }
     stack[kStarted] = true
-    for await (const entry of walkDir(path, sliceAt)) {
+    for await (const entry of walkDir(root, sliceAt)) {
       for (const found of stack) {
         await found.call(fastify, entry)
       }
