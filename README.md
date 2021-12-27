@@ -1,6 +1,6 @@
 # fastify-walk
 
-A minimal Fastify interface to [**klaw**](https://github.com/jprichardson/node-klaw).
+A minimal Fastify interface to [**klaw**](https://github.com/jprichardson/node-klaw) and [**chokidar**](https://github.com/paulmillr/chokidar).
 
 ## Install
 
@@ -17,15 +17,23 @@ import FastifyWalk from 'fastify-walk'
 async function main () {
   const app = Fastify()
   await app.register(FastifyWalk, {
-    path: '/path/to/search'
+    path: '/path/to/search',
+    watch: true, // enables chokidar integration, default false
   })
 
   // Will match both files and directories
-  fastify.walk.onMatch((entry) => {})
+  fastify.walk.onEntry((entry) => {})
+
   // Will match only directories
   fastify.walk.onDirectory((entry) => {})  
   // Will match only files
   fastify.walk.onFile((entry) => {})
+
+  // Will match only files, and watch for changes
+  fastify.walk.onFile({
+    found (entry) {},
+    changed (path) {}
+  })
 
   // The first parameter can be a regular expression
   fastify.walk.onMatch(/\.md$/, (entry) => {})
